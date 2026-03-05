@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build / Output
+dist/
+build/
+*.zip
+*.crx
+
+# macOS
+.DS_Store
+
+# Logs
+npm-debug.log
+yarn-error.log
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
