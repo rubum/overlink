@@ -5,11 +5,13 @@
 
 Overlink is an elegant, modern browser extension for Chrome and Brave that allows you to open links in an in-page modal dialog directly over your current tab, eliminating the need to constantly open and switch between new tabs.
 
-## Features Let's you 
+## Features
 
-*   **Context Menu Integration**: Simply right-click any link and select "Open as overlay".
-*   **Premium Glassmorphic UI**: Features a beautiful, responsive modal with smooth animations and dark mode support.
-*   **Frame Restriction Bypass**: Uses the `declarativeNetRequest` API (supported in both Chrome and Brave) to bypass restrictive headers (`X-Frame-Options` and `Content-Security-Policy`), allowing almost any site (like GitHub, Luma) to load within the frame.
+*   **Context Menu Integration**: Right-click links or highlight text to open them instantly.
+*   **Multi-Tab Overlay Modal**: Open multiple links in an elegant, glassmorphic in-page modal without ever leaving your current tab. The modal supports switching between active tabs effortlessly.
+*   **Persistent Side Panel**: Prefer a vertical split? Send links and searches directly to Chrome's native Side Panel, powered by its own multi-tab interface.
+*   **Quick Search**: Highlight text on any page, right-click, and search Google within the Overlay or Side Panel immediately.
+*   **Frame Restriction Bypass**: Uses the `declarativeNetRequest` API to bypass restrictive headers (`X-Frame-Options` and `Content-Security-Policy`), allowing almost any site (like GitHub, Luma) to load.
 *   **Safe Fallback**: Includes a sleek "Open in new tab" button if a site completely refuses to be embedded.
 
 ## Installation (Developer Mode)
@@ -26,7 +28,6 @@ Since this extension uses powerful network request modification to bypass frame 
 ## Usage
 
 1.  Navigate to any standard webpage.
-2.  Find a link you want to check quickly.
-3.  Right-click the link to open the context menu.
-4.  Click **"Open as overlay"**.
-5.  Read the content within the beautiful overlay! When finished, click the close button (X) or simply click anywhere outside the modal.
+2.  **For Links:** Right-click a link and select **"Open link in Overlay"** or **"Open link in Side Panel"**.
+3.  **For Text Search:** Highlight any text, right-click, and select **"Search in Overlay"** or **"Search in Side Panel"**.
+4.  Opening multiple links will stack them neatly as tabs within the Overlay or the Side Panel!
