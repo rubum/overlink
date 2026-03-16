@@ -157,7 +157,7 @@
 }
 
 /* Close button */
-#overlink-close-btn {
+#overlink-close-btn, .overlink-nav-btn {
   background: transparent;
   border: none;
   font-size: 24px;
@@ -174,9 +174,13 @@
   transition: all 0.2s ease;
 }
 
-#overlink-close-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
+#overlink-close-btn:hover, .overlink-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111827;
+}
+
+.overlink-nav-btn svg {
+  pointer-events: none;
 }
 
 /* Content Area */
@@ -297,8 +301,9 @@
     color: #f3f4f6;
   }
 
-  .overlink-tab-close:hover {
-    background: rgba(239, 68, 68, 0.2);
+  #overlink-close-btn:hover, .overlink-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f3f4f6;
   }
   
   #overlink-new-tab-btn {

@@ -43,6 +43,18 @@ function createOverlayUI() {
     const actions = document.createElement('div');
     actions.id = 'overlink-actions';
 
+    const navBackBtn = document.createElement('button');
+    navBackBtn.id = 'overlink-nav-back-btn';
+    navBackBtn.className = 'overlink-nav-btn';
+    navBackBtn.title = 'Go Back';
+    navBackBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg>';
+
+    const navForwardBtn = document.createElement('button');
+    navForwardBtn.id = 'overlink-nav-forward-btn';
+    navForwardBtn.className = 'overlink-nav-btn';
+    navForwardBtn.title = 'Go Forward';
+    navForwardBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z"/></svg>';
+
     const newTabBtn = document.createElement('a');
     newTabBtn.id = 'overlink-new-tab-btn';
     newTabBtn.target = '_blank';
@@ -55,6 +67,8 @@ function createOverlayUI() {
     closeBtn.innerHTML = '&times;';
     closeBtn.title = 'Close Dialog';
 
+    actions.appendChild(navBackBtn);
+    actions.appendChild(navForwardBtn);
     actions.appendChild(newTabBtn);
     actions.appendChild(closeBtn);
     
@@ -69,6 +83,20 @@ function createOverlayUI() {
     overlay.appendChild(modalContainer);
 
     // Event Listeners
+    navBackBtn.addEventListener('click', () => {
+        const activeIframe = getActiveOverlayIframe();
+        if (activeIframe) {
+            activeIframe.contentWindow.postMessage('overlink-back', '*');
+        }
+    });
+
+    navForwardBtn.addEventListener('click', () => {
+        const activeIframe = getActiveOverlayIframe();
+        if (activeIframe) {
+            activeIframe.contentWindow.postMessage('overlink-forward', '*');
+        }
+    });
+
     closeBtn.addEventListener('click', closeOverlay);
     
     // Close when clicking outside
@@ -104,7 +132,11 @@ function addOverlayTab(url) {
 
     try {
         const urlObj = new URL(url);
-        tabObj.title = urlObj.hostname;
+        let pathTitle = urlObj.pathname + urlObj.search;
+        if (pathTitle === '/' || !pathTitle) {
+            pathTitle = urlObj.hostname;
+        }
+        tabObj.title = pathTitle;
     } catch (e) {
         tabObj.title = url;
     }
@@ -165,7 +197,8 @@ function createOverlayIframe(tabObj) {
     // Iframe
     const iframe = document.createElement('iframe');
     iframe.src = tabObj.url;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+    // Removed strict sandbox to avoid potential interactions with CSP/framing
+    // iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
     
     iframe.onload = () => {
         spinner.style.display = 'none';
@@ -231,4 +264,10 @@ function removeOverlayTab(tabId) {
     }
 
     renderOverlayTabBar();
+}
+
+function getActiveOverlayIframe() {
+    if (!overlayActiveTabId) return null;
+    const container = document.getElementById(`ocontainer-${overlayActiveTabId}`);
+    return container ? container.querySelector('iframe') : null;
 }

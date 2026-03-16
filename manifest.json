@@ -36,6 +36,15 @@
             "css": [
                 "styles.css"
             ]
+        },
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "nav-helper.js"
+            ],
+            "all_frames": true
         }
     ],
     "declarative_net_request": {

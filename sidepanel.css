@@ -108,7 +108,7 @@ body {
     align-items: center;
 }
 
-#close-all-btn {
+#close-all-btn, .nav-btn {
     background: transparent;
     border: none;
     color: #6b7280;
@@ -120,11 +120,16 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
-#close-all-btn:hover {
+#close-all-btn:hover, .nav-btn:hover {
     background: #f3f4f6;
     color: #374151;
+}
+
+.nav-btn svg {
+    pointer-events: none;
 }
 
 /* Content Area */
@@ -237,7 +242,7 @@ iframe {
     #content-area, .iframe-container {
         background: #1f2937;
     }
-    #close-all-btn:hover {
+    #close-all-btn:hover, .nav-btn:hover {
         background: #374151;
         color: #f3f4f6;
     }

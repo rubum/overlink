@@ -1,37 +1,139 @@
-let tabs = [];
-let activeTabId = null;
+let sessions = {}; // Map of browserTabId -> { tabs: [], activeTabId: string }
+let currentBrowserTabId = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Determine the initially active browser tab in this window
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) {
+        currentBrowserTabId = tab.id;
+        ensureSession(currentBrowserTabId);
+    }
+
     // 1. Check for pending URLs in storage
-    chrome.storage.session.get(['pendingSidePanelUrls'], (result) => {
-        const urls = result.pendingSidePanelUrls || [];
-        if (urls.length > 0) {
-            urls.forEach(url => openTab(url));
-            // Clear the queue
-            chrome.storage.session.set({ pendingSidePanelUrls: [] });
-        }
-    });
+    refreshFromStorage();
 
-    // 2. Listen for real-time messages
+    // 2. Listen for real-time messages from background.js
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "openSidePanelTab") {
-            openTab(request.linkUrl);
+            const targetTabId = request.tabId;
+            openTab(request.linkUrl, targetTabId);
             sendResponse({ status: "opened" });
         }
     });
 
-    // 3. Setup header actions
+    // 3. Listen for tab switches in the browser
+    chrome.tabs.onActivated.addListener((activeInfo) => {
+        // We only care if the tab belongs to our current window (implicit check usually works, but let's be safe)
+        chrome.tabs.get(activeInfo.tabId, (tab) => {
+            if (chrome.runtime.lastError) return;
+            // Only switch if it's the same window as the side panel
+            // Note: Side panel usually stays within its window
+            switchBrowserTabSession(tab.id);
+        });
+    });
+
+    // 4. Setup header actions
+    document.getElementById('nav-back-btn').addEventListener('click', () => {
+        const activeIframe = getActiveIframe();
+        if (activeIframe) {
+            activeIframe.contentWindow.postMessage('overlink-back', '*');
+        }
+    });
+
+    document.getElementById('nav-forward-btn').addEventListener('click', () => {
+        const activeIframe = getActiveIframe();
+        if (activeIframe) {
+            activeIframe.contentWindow.postMessage('overlink-forward', '*');
+        }
+    });
+
+    // 4. Cleanup when browser tab is closed
+    chrome.tabs.onRemoved.addListener((tabId) => {
+        if (sessions[tabId]) {
+            // Clean up all iframes in that session
+            sessions[tabId].tabs.forEach(tab => {
+                const container = document.getElementById(`container-${tab.id}`);
+                if (container) container.remove();
+            });
+            delete sessions[tabId];
+        }
+    });
+
     document.getElementById('close-all-btn').addEventListener('click', () => {
-        // Unfortunately there's no programmatic chrome.sidePanel.close() yet.
-        // The user has to click the X in the side panel header natively.
-        // But we can clear our state.
-        tabs.forEach(tab => removeTab(tab.id));
+        if (currentBrowserTabId && sessions[currentBrowserTabId]) {
+            const session = sessions[currentBrowserTabId];
+            [...session.tabs].forEach(tab => removeTab(tab.id, currentBrowserTabId));
+        }
     });
 });
 
-function openTab(url) {
-    const tabId = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+function ensureSession(browserTabId) {
+    if (!sessions[browserTabId]) {
+        sessions[browserTabId] = {
+            tabs: [],
+            activeTabId: null
+        };
+    }
+}
+
+function switchBrowserTabSession(browserTabId) {
+    if (currentBrowserTabId === browserTabId) return;
+
+    // Hide old session containers
+    if (currentBrowserTabId && sessions[currentBrowserTabId]) {
+        sessions[currentBrowserTabId].tabs.forEach(tab => {
+            const container = document.getElementById(`container-${tab.id}`);
+            if (container) container.style.display = 'none';
+        });
+    }
+
+    currentBrowserTabId = browserTabId;
+    ensureSession(currentBrowserTabId);
+
+    // Show new session containers (if active)
+    const session = sessions[currentBrowserTabId];
+    if (session.activeTabId) {
+        const container = document.getElementById(`container-${session.activeTabId}`);
+        if (container) container.style.display = 'flex';
+    }
+
+    renderTabBar();
     
+    // Check if empty state needed
+    const emptyState = document.getElementById('empty-state');
+    if (emptyState) {
+        emptyState.style.display = session.tabs.length === 0 ? 'flex' : 'none';
+    }
+    
+    // Also refresh from storage in case something was added while we were inactive
+    refreshFromStorage();
+}
+
+function refreshFromStorage() {
+    chrome.storage.session.get(['pendingSidePanelUrls'], (result) => {
+        let urls = result.pendingSidePanelUrls || [];
+        if (urls.length > 0) {
+            const remaining = [];
+            urls.forEach(item => {
+                // If it's for the currently active tab, open it
+                if (item.tabId === currentBrowserTabId) {
+                    openTab(item.url, item.tabId);
+                } else {
+                    remaining.push(item);
+                }
+            });
+            // Update storage with remaining
+            chrome.storage.session.set({ pendingSidePanelUrls: remaining });
+        }
+    });
+}
+
+function openTab(url, browserTabId = currentBrowserTabId) {
+    ensureSession(browserTabId);
+    const session = sessions[browserTabId];
+
+    const tabId = 'tab-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
     const tabObj = {
         id: tabId,
         url: url,
@@ -40,22 +142,36 @@ function openTab(url) {
 
     try {
         const urlObj = new URL(url);
-        tabObj.title = urlObj.hostname;
+        let pathTitle = urlObj.pathname + urlObj.search;
+        if (pathTitle === '/' || !pathTitle) {
+            pathTitle = urlObj.hostname;
+        }
+        tabObj.title = pathTitle;
     } catch (e) {
         tabObj.title = url;
     }
 
-    tabs.push(tabObj);
-    
-    renderTabBar();
-    createIframe(tabObj);
-    switchTab(tabId);
+    session.tabs.push(tabObj);
+
+    // If this is for the current browser tab, render and switch
+    if (browserTabId === currentBrowserTabId) {
+        renderTabBar();
+        createIframe(tabObj);
+        switchTab(tabId);
+    } else {
+        // Just create the iframe in background so it's ready when we switch
+        createIframe(tabObj);
+    }
 }
 
 function createIframe(tabObj) {
     const contentArea = document.getElementById('content-area');
     const emptyState = document.getElementById('empty-state');
-    if (emptyState) emptyState.style.display = 'none';
+    if (emptyState && tabObj.id.includes(currentBrowserTabId)) { // Only hide if for current
+         emptyState.style.display = 'none';
+    } else if (emptyState && currentBrowserTabId && sessions[currentBrowserTabId]?.tabs.length > 0) {
+         emptyState.style.display = 'none';
+    }
 
     // Container
     const iframeContainer = document.createElement('div');
@@ -71,16 +187,14 @@ function createIframe(tabObj) {
     // Iframe
     const iframe = document.createElement('iframe');
     iframe.src = tabObj.url;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
-    
+
     iframe.onload = () => {
         spinner.style.display = 'none';
-        // Try to update title if possible (often blocked by CORS)
         try {
             if (iframe.contentDocument && iframe.contentDocument.title) {
                 updateTabTitle(tabObj.id, iframe.contentDocument.title);
             }
-        } catch(e) {}
+        } catch (e) { }
     };
 
     iframeContainer.appendChild(spinner);
@@ -92,9 +206,13 @@ function renderTabBar() {
     const tabBar = document.getElementById('tab-bar');
     tabBar.innerHTML = ''; // Clear
 
-    tabs.forEach(tab => {
+    if (!currentBrowserTabId || !sessions[currentBrowserTabId]) return;
+
+    const session = sessions[currentBrowserTabId];
+
+    session.tabs.forEach(tab => {
         const tabEl = document.createElement('div');
-        tabEl.className = `tab ${tab.id === activeTabId ? 'active' : ''}`;
+        tabEl.className = `tab ${tab.id === session.activeTabId ? 'active' : ''}`;
         tabEl.id = `ui-${tab.id}`;
         tabEl.title = tab.url;
 
@@ -117,61 +235,83 @@ function renderTabBar() {
     });
 }
 
-function switchTab(tabId) {
-    if (activeTabId) {
+function switchTab(tabId, browserTabId = currentBrowserTabId) {
+    const session = sessions[browserTabId];
+    if (!session) return;
+
+    if (session.activeTabId && browserTabId === currentBrowserTabId) {
         // Hide current
-        const oldContainer = document.getElementById(`container-${activeTabId}`);
+        const oldContainer = document.getElementById(`container-${session.activeTabId}`);
         if (oldContainer) oldContainer.style.display = 'none';
-        const oldTabUi = document.getElementById(`ui-${activeTabId}`);
+        const oldTabUi = document.getElementById(`ui-${session.activeTabId}`);
         if (oldTabUi) oldTabUi.classList.remove('active');
     }
 
-    activeTabId = tabId;
+    session.activeTabId = tabId;
 
-    if (activeTabId) {
+    if (session.activeTabId && browserTabId === currentBrowserTabId) {
         // Show new
-        const newContainer = document.getElementById(`container-${activeTabId}`);
+        const newContainer = document.getElementById(`container-${tabId}`);
         if (newContainer) newContainer.style.display = 'flex';
-        const newTabUi = document.getElementById(`ui-${activeTabId}`);
+        const newTabUi = document.getElementById(`ui-${tabId}`);
         if (newTabUi) newTabUi.classList.add('active');
-        
-        // Scroll tab bar to make active visible
+
         newTabUi?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
 }
 
-function removeTab(tabId) {
+function removeTab(tabId, browserTabId = currentBrowserTabId) {
+    const session = sessions[browserTabId];
+    if (!session) return;
+
     // Remove UI
     const container = document.getElementById(`container-${tabId}`);
     if (container) container.remove();
 
     // Remove logic
-    const index = tabs.findIndex(t => t.id === tabId);
+    const index = session.tabs.findIndex(t => t.id === tabId);
     if (index > -1) {
-        tabs.splice(index, 1);
+        session.tabs.splice(index, 1);
     }
 
     // Switch tab if active was closed
-    if (activeTabId === tabId) {
-        if (tabs.length > 0) {
-            // Switch to the one on the left if possible, or the new first one
+    if (session.activeTabId === tabId) {
+        if (session.tabs.length > 0) {
             const newIndex = Math.max(0, index - 1);
-            switchTab(tabs[newIndex].id);
+            switchTab(session.tabs[newIndex].id, browserTabId);
         } else {
-            activeTabId = null;
-            const emptyState = document.getElementById('empty-state');
-            if (emptyState) emptyState.style.display = 'flex';
+            session.activeTabId = null;
+            if (browserTabId === currentBrowserTabId) {
+                const emptyState = document.getElementById('empty-state');
+                if (emptyState) emptyState.style.display = 'flex';
+            }
         }
     }
 
-    renderTabBar();
+    if (browserTabId === currentBrowserTabId) {
+        renderTabBar();
+    }
 }
 
 function updateTabTitle(tabId, newTitle) {
-    const tab = tabs.find(t => t.id === tabId);
-    if (tab) {
-        tab.title = newTitle;
-        const uiTitle = document.querySelector(`#ui-${tabId} .tab-title`);
-        if (uiTitle) uiTitle.innerText = newTitle;
+    // Search all sessions for the tab
+    for (const bId in sessions) {
+        const tab = sessions[bId].tabs.find(t => t.id === tabId);
+        if (tab) {
+            tab.title = newTitle;
+            if (bId == currentBrowserTabId) {
+                const uiTitle = document.querySelector(`#ui-${tabId} .tab-title`);
+                if (uiTitle) uiTitle.innerText = newTitle;
+            }
+            break;
+        }
     }
+}
+
+function getActiveIframe() {
+    if (!currentBrowserTabId || !sessions[currentBrowserTabId]) return null;
+    const session = sessions[currentBrowserTabId];
+    if (!session.activeTabId) return null;
+    const container = document.getElementById(`container-${session.activeTabId}`);
+    return container ? container.querySelector('iframe') : null;
 }

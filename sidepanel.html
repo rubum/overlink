@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>Overlink Side Panel</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="sidepanel.css">
 </head>
+
 <body>
     <div id="sidepanel-container">
         <div id="sidepanel-header">
@@ -13,17 +15,30 @@
                 <!-- Tabs will be injected here dynamically -->
             </div>
             <div id="header-actions">
+                <button id="nav-back-btn" class="nav-btn" title="Go Back">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path
+                            d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z" />
+                    </svg>
+                </button>
+                <button id="nav-forward-btn" class="nav-btn" title="Go Forward">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path
+                            d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z" />
+                    </svg>
+                </button>
                 <button id="close-all-btn" title="Close Panel">&times;</button>
             </div>
         </div>
         <div id="content-area">
             <!-- Iframes and placeholders will be injected here -->
             <div id="empty-state">
-                <p>Welcome to Overlink Side Panel</p>
+                <p>Overlink Side Panel</p>
                 <span>Right-click a link or highlight text to open it here.</span>
             </div>
         </div>
     </div>
     <script src="sidepanel.js"></script>
 </body>
+
 </html>

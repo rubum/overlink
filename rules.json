@@ -1,24 +1,24 @@
 [
     {
         "id": 1,
-        "priority": 1,
+        "priority": 1000,
         "action": {
             "type": "modifyHeaders",
             "responseHeaders": [
-                {
-                    "header": "x-frame-options",
-                    "operation": "remove"
-                },
-                {
-                    "header": "content-security-policy",
-                    "operation": "remove"
-                }
+                { "header": "x-frame-options", "operation": "remove" },
+                { "header": "content-security-policy", "operation": "remove" },
+                { "header": "content-security-policy-report-only", "operation": "remove" },
+                { "header": "x-content-security-policy", "operation": "remove" },
+                { "header": "x-webkit-csp", "operation": "remove" },
+                { "header": "frame-options", "operation": "remove" },
+                { "header": "cross-origin-embedder-policy", "operation": "remove" },
+                { "header": "cross-origin-opener-policy", "operation": "remove" },
+                { "header": "cross-origin-resource-policy", "operation": "remove" }
             ]
         },
         "condition": {
-            "resourceTypes": [
-                "sub_frame"
-            ]
+            "urlFilter": "*",
+            "resourceTypes": ["sub_frame", "xmlhttprequest"]
         }
     }
 ]
