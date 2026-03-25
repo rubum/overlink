@@ -1,5 +1,6 @@
 let sessions = {}; // Map of browserTabId -> { tabs: [], activeTabId: string }
 let currentBrowserTabId = null;
+let draggedTabId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Determine the initially active browser tab in this window
@@ -44,6 +45,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         const activeIframe = getActiveIframe();
         if (activeIframe) {
             activeIframe.contentWindow.postMessage('overlink-forward', '*');
+        }
+    });
+
+    // Search Actions
+    const searchBarContainer = document.getElementById('search-bar-container');
+    const searchInput = document.getElementById('search-input');
+
+    document.getElementById('search-toggle-btn').addEventListener('click', () => {
+        searchBarContainer.style.display = searchBarContainer.style.display === 'none' ? 'flex' : 'none';
+        if (searchBarContainer.style.display === 'flex') {
+            searchInput.focus();
+        }
+    });
+
+    document.getElementById('search-close-btn').addEventListener('click', () => {
+        searchBarContainer.style.display = 'none';
+    });
+
+    const triggerSearch = (backwards = false) => {
+        const query = searchInput.value;
+        if (!query) return;
+        
+        const activeIframe = getActiveIframe();
+        if (activeIframe) {
+            activeIframe.contentWindow.postMessage({ action: 'overlink-search', query, backwards }, '*');
+        }
+    };
+
+    document.getElementById('search-next-btn').addEventListener('click', () => triggerSearch(false));
+    document.getElementById('search-prev-btn').addEventListener('click', () => triggerSearch(true));
+
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            triggerSearch(e.shiftKey); // Shift+Enter to search backwards
         }
     });
 
@@ -215,6 +250,40 @@ function renderTabBar() {
         tabEl.className = `tab ${tab.id === session.activeTabId ? 'active' : ''}`;
         tabEl.id = `ui-${tab.id}`;
         tabEl.title = tab.url;
+        tabEl.draggable = true;
+
+        tabEl.addEventListener('dragstart', (e) => {
+            draggedTabId = tab.id;
+            tabEl.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        tabEl.addEventListener('dragend', () => {
+            draggedTabId = null;
+            tabEl.classList.remove('dragging');
+            syncTabsArrayFromDOM();
+        });
+
+        tabEl.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            if (!draggedTabId || draggedTabId === tab.id) return;
+
+            const draggedEl = document.getElementById(`ui-${draggedTabId}`);
+            if (!draggedEl) return;
+
+            const rect = tabEl.getBoundingClientRect();
+            const midpoint = rect.left + rect.width / 2;
+            
+            if (e.clientX < midpoint) {
+                 tabEl.parentNode.insertBefore(draggedEl, tabEl);
+            } else {
+                 tabEl.parentNode.insertBefore(draggedEl, tabEl.nextSibling);
+            }
+        });
+
+        tabEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+        });
 
         const titleEl = document.createElement('span');
         titleEl.className = 'tab-title';
@@ -314,4 +383,26 @@ function getActiveIframe() {
     if (!session.activeTabId) return null;
     const container = document.getElementById(`container-${session.activeTabId}`);
     return container ? container.querySelector('iframe') : null;
+}
+
+function syncTabsArrayFromDOM() {
+    if (!currentBrowserTabId || !sessions[currentBrowserTabId]) return;
+    const session = sessions[currentBrowserTabId];
+    
+    const tabBar = document.getElementById('tab-bar');
+    const newTabsArray = [];
+    
+    for (let child of tabBar.children) {
+        if (child.id && child.id.startsWith('ui-')) {
+            const tabId = child.id.substring(3);
+            const tabObj = session.tabs.find(t => t.id === tabId);
+            if (tabObj) {
+                newTabsArray.push(tabObj);
+            }
+        }
+    }
+    
+    if (newTabsArray.length === session.tabs.length) {
+        session.tabs = newTabsArray;
+    }
 }

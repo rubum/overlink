@@ -27,7 +27,21 @@
                             d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708z" />
                     </svg>
                 </button>
+                <button id="search-toggle-btn" class="nav-btn" title="Find in Page">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                </button>
                 <button id="close-all-btn" title="Close Panel">&times;</button>
+            </div>
+        </div>
+        <div id="search-bar-container" style="display: none;">
+            <input type="text" id="search-input" placeholder="Find in page..." />
+            <div class="search-actions">
+                <button id="search-prev-btn" class="search-btn" title="Previous">▲</button>
+                <button id="search-next-btn" class="search-btn" title="Next">▼</button>
+                <div class="search-divider"></div>
+                <button id="search-close-btn" class="search-btn" title="Close Search">&times;</button>
             </div>
         </div>
         <div id="content-area">

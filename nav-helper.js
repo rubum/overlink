@@ -9,5 +9,8 @@ window.addEventListener('message', (event) => {
         history.back();
     } else if (event.data === 'overlink-forward') {
         history.forward();
+    } else if (event.data && event.data.action === 'overlink-search') {
+        // window.find(aString, aCaseSensitive, aBackwards, aWrapAround, aWholeWord, aSearchInFrames, aShowDialog)
+        window.find(event.data.query, false, event.data.backwards, true);
     }
 });
